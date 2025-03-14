@@ -17,7 +17,7 @@ class AuthController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['login', 'register']]);
+        $this->middleware('auth:api', ['except' => ['login', 'register', 'updateUser', 'updateUserImage', 'getUserImage']]);
     }
 
     /**
@@ -323,36 +323,260 @@ class AuthController extends Controller
     }
 
     /**
-     * @OA\Get(
-     *     path="/api/user/{id}",
-     *     summary="Get user details by ID",
-     *     tags={"User"},
+     * @OA\Put(
+     *     path="/users/{user_id}",
+     *     summary="Update user details",
+     *     description="Updates user information like username, email, phone number, or password",
+     *     operationId="updateUser",
+     *     tags={"Users"},
      *     @OA\Parameter(
-     *         name="id",
+     *         name="user_id",
      *         in="path",
      *         required=true,
-     *         description="User ID",
-     *         @OA\Schema(type="integer")
+     *         description="ID of the user to update",
+     *         @OA\Schema(type="integer", format="int64")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="username", type="string", example="newusername"),
+     *             @OA\Property(property="email", type="string", format="email", example="newemail@example.com"),
+     *             @OA\Property(property="phone_number", type="string", example="1234567890"),
+     *             @OA\Property(property="password", type="string", format="password", example="newpassword123")
+     *         )
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="User details retrieved successfully",
-     *         @OA\JsonContent(ref="#/components/schemas/User")
+     *         description="User details updated successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="success"),
+     *             @OA\Property(property="message", type="string", example="User details updated successfully"),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 ref="#/components/schemas/User"
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="error"),
+     *             @OA\Property(property="message", type="string", example="Validation error"),
+     *             @OA\Property(
+     *                 property="errors",
+     *                 type="object",
+     *                 @OA\Property(property="username", type="array", @OA\Items(type="string")),
+     *                 @OA\Property(property="email", type="array", @OA\Items(type="string")),
+     *                 @OA\Property(property="phone_number", type="array", @OA\Items(type="string")),
+     *                 @OA\Property(property="password", type="array", @OA\Items(type="string"))
+     *             )
+     *         )
      *     ),
      *     @OA\Response(
      *         response=404,
-     *         description="User not found"
+     *         description="User not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="error"),
+     *             @OA\Property(property="message", type="string", example="User not found")
+     *         )
      *     )
      * )
      */
-    public function getUserDetails($id)
+    public function updateUser(Request $request, $user_id)
     {
-        $user = User::getUserDetails($id);
-        
-        if (!$user) {
-            return response()->json(['message' => 'User not found'], 404);
+        $validator = Validator::make($request->all(), [
+            'username' => 'sometimes|string|between:2,100|unique:users,username,' . $user_id,
+            'email' => 'sometimes|string|email|max:100|unique:users,email,' . $user_id,
+            'phone_number' => 'sometimes|string|max:15',
+            'password' => 'sometimes|string|min:6',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation error',
+                'errors' => $validator->errors()
+            ], 400);
         }
 
-        return response()->json($user);
+        $updatedUser = User::updateUserDetails($user_id, $request->all());
+
+        if (!$updatedUser) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'User details updated successfully',
+            'data' => $updatedUser
+        ], 200);
     }
+
+    /**
+     * @OA\Post(
+     *     path="/users/{user_id}/image",
+     *     summary="Update user profile image",
+     *     description="Updates user profile image",
+     *     operationId="updateUserImage",
+     *     tags={"Users"},
+     *     @OA\Parameter(
+     *         name="user_id",
+     *         in="path",
+     *         required=true,
+     *         description="ID of the user",
+     *         @OA\Schema(type="integer", format="int64")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 @OA\Property(
+     *                     property="image",
+     *                     type="string",
+     *                     format="binary",
+     *                     description="Image file"
+     *                 )
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Image updated successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="success"),
+     *             @OA\Property(property="message", type="string", example="Image updated successfully"),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="image_path", type="string", example="image/profile123.png")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Invalid image",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="error"),
+     *             @OA\Property(property="message", type="string", example="Please upload a valid image")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="User not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="error"),
+     *             @OA\Property(property="message", type="string", example="User not found")
+     *         )
+     *     )
+     * )
+     */
+    public function updateUserImage(Request $request, $user_id)
+    {
+        $validator = Validator::make($request->all(), [
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Please upload a valid image',
+                'errors' => $validator->errors()
+            ], 400);
+        }
+
+        $user = User::find($user_id);
+        if (!$user) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        if ($request->hasFile('image')) {
+            // Delete old image if exists and is not default.png
+            if ($user->image && 
+                file_exists(public_path($user->image)) && 
+                basename($user->image) !== 'default.png') {
+                unlink(public_path($user->image));
+            }
+
+            $image = $request->file('image');
+            $imageName = time() . '.' . $image->getClientOriginalExtension();
+            $image->move(public_path('image'), $imageName);
+
+            $user->image = 'image/' . $imageName;
+            $user->save();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Image updated successfully',
+                'data' => [
+                    'image_path' => $user->image
+                ]
+            ], 200);
+        }
+
+        return response()->json([
+            'status' => 'error',
+            'message' => 'No image file uploaded'
+        ], 400);
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/users/{user_id}/image",
+     *     summary="Get user profile image",
+     *     description="Returns user profile image path",
+     *     operationId="getUserImage",
+     *     tags={"Users"},
+     *     @OA\Parameter(
+     *         name="user_id",
+     *         in="path",
+     *         required=true,
+     *         description="ID of the user",
+     *         @OA\Schema(type="integer", format="int64")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Success",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="success"),
+     *             @OA\Property(property="data", type="object",
+     *                 @OA\Property(property="image_path", type="string", example="image/profile123.png")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="User not found or no image available",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="error"),
+     *             @OA\Property(property="message", type="string", example="User not found or no image available")
+     *         )
+     *     )
+     * )
+     */
+    public function getUserImage($user_id)
+    {
+        $user = User::find($user_id);
+        
+        if (!$user || !$user->image) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'User not found or no image available'
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'image_path' => $user->image
+            ]
+        ], 200);
+    }
+
 } 

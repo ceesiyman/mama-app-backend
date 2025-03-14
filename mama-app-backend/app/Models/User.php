@@ -33,6 +33,7 @@ class User extends Authenticatable implements JWTSubject
         'email',
         'phone_number',
         'password',
+        'image',
         'remember_token'
     ];
 
@@ -55,6 +56,15 @@ class User extends Authenticatable implements JWTSubject
         'email_verified_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime'
+    ];
+
+    /**
+     * The attributes that should be set when creating a new instance.
+     *
+     * @var array
+     */
+    protected $attributes = [
+        'image' => 'image/default.png'
     ];
 
     /**
@@ -98,5 +108,22 @@ class User extends Authenticatable implements JWTSubject
         return self::where('id', $userId)
             ->select(['id', 'username', 'email', 'phone_number', 'created_at', 'updated_at'])
             ->first();
+    }
+
+    /**
+     * Update user details by ID
+     *
+     * @param int $userId
+     * @param array $data
+     * @return User|null
+     */
+    public static function updateUserDetails($userId, array $data)
+    {
+        $user = self::find($userId);
+        if ($user) {
+            $user->update($data);
+            return self::getUserDetails($userId);
+        }
+        return null;
     }
 }

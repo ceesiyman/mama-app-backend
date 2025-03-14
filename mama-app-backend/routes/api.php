@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\MamaDataController;
 use App\Http\Controllers\JournalController;
 use App\Http\Controllers\ReminderController;
+use App\Http\Controllers\MamaTipController;
 
 /*
 |--------------------------------------------------------------------------
@@ -19,19 +20,13 @@ use App\Http\Controllers\ReminderController;
 */
 
 // Auth routes
-Route::group([
-    'middleware' => 'api',
-    'prefix' => 'auth'
-], function ($router) {
+Route::group(['middleware' => ['api']], function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
     Route::get('/user-profile', [AuthController::class, 'userProfile']);
 });
-
-// Public route for getting user details
-Route::get('user/{id}', [AuthController::class, 'getUserDetails']);
 
 // Mama Data route - no middleware
 Route::post('/mama-data', [MamaDataController::class, 'store']);
@@ -46,3 +41,14 @@ Route::get('/reminders/{user_id}', [ReminderController::class, 'index']);
 Route::post('/reminders', [ReminderController::class, 'store']);
 Route::put('/reminders/{id}', [ReminderController::class, 'update']);
 Route::delete('/reminders/{id}', [ReminderController::class, 'destroy']);
+
+// User update route - no authentication
+Route::put('/users/{user_id}', [AuthController::class, 'updateUser']);
+
+// User image routes - no authentication
+Route::post('/users/{user_id}/image', [AuthController::class, 'updateUserImage']);
+Route::get('/users/{user_id}/image', [AuthController::class, 'getUserImage']);
+
+// Mama Tips routes - no authentication
+Route::get('/mama-tips', [MamaTipController::class, 'index']);
+Route::get('/mama-tips/{id}', [MamaTipController::class, 'show']);
