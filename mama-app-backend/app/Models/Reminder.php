@@ -53,6 +53,12 @@ use Illuminate\Database\Eloquent\Model;
  *         type="string",
  *         format="date-time",
  *         example="2024-03-21T12:00:00Z"
+ *     ),
+ *     @OA\Property(
+ *         property="status",
+ *         type="boolean",
+ *         example=false,
+ *         description="Reminder completion status (false=pending, true=completed)"
  *     )
  * )
  */
@@ -64,7 +70,8 @@ class Reminder extends Model
         'appointment',
         'reminder_time',
         'dose_unit',
-        'medicine_details'
+        'medicine_details',
+        'status'
     ];
 
     protected $casts = [

@@ -241,14 +241,26 @@
                 }
             }
         },
-        "/auth/logout": {
+        "/auth/logout/{user_id}": {
             "post": {
                 "tags": [
                     "Authentication"
                 ],
                 "summary": "Logout a user",
-                "description": "Invalidates the current user's token",
+                "description": "Logs out user by clearing their remember_token",
                 "operationId": "logout",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "path",
+                        "description": "ID of the user to logout",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Successfully logged out",
@@ -266,15 +278,15 @@
                             }
                         }
                     },
-                    "401": {
-                        "description": "Unauthenticated",
+                    "404": {
+                        "description": "User not found",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "example": "Unauthenticated"
+                                            "example": "User not found"
                                         }
                                     },
                                     "type": "object"
@@ -282,12 +294,7 @@
                             }
                         }
                     }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
+                }
             }
         },
         "/auth/user-profile": {
@@ -434,14 +441,13 @@
                 "tags": [
                     "Users"
                 ],
-                "summary": "Update user details",
-                "description": "Updates user information like username, email, phone number, or password",
+                "summary": "Update user profile",
+                "description": "Updates a user's profile information. Only provided fields will be updated.",
                 "operationId": "updateUser",
                 "parameters": [
                     {
                         "name": "user_id",
                         "in": "path",
-                        "description": "ID of the user to update",
                         "required": true,
                         "schema": {
                             "type": "integer",
@@ -450,28 +456,27 @@
                     }
                 ],
                 "requestBody": {
-                    "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
                                 "properties": {
                                     "username": {
-                                        "type": "string",
-                                        "example": "newusername"
+                                        "type": "string"
                                     },
                                     "email": {
                                         "type": "string",
-                                        "format": "email",
-                                        "example": "newemail@example.com"
+                                        "format": "email"
                                     },
                                     "phone_number": {
-                                        "type": "string",
-                                        "example": "1234567890"
+                                        "type": "string"
                                     },
                                     "password": {
                                         "type": "string",
-                                        "format": "password",
-                                        "example": "newpassword123"
+                                        "format": "password"
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "format": "password"
                                     }
                                 },
                                 "type": "object"
@@ -481,96 +486,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "User details updated successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "string",
-                                            "example": "success"
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "User details updated successfully"
-                                        },
-                                        "data": {
-                                            "$ref": "#/components/schemas/User"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Validation error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "string",
-                                            "example": "error"
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Validation error"
-                                        },
-                                        "errors": {
-                                            "properties": {
-                                                "username": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "string"
-                                                    }
-                                                },
-                                                "email": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "string"
-                                                    }
-                                                },
-                                                "phone_number": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "string"
-                                                    }
-                                                },
-                                                "password": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "string"
-                                                    }
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "User not found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "string",
-                                            "example": "error"
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "User not found"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "User updated successfully"
                     }
                 }
             }
@@ -968,9 +884,7 @@
                             "schema": {
                                 "required": [
                                     "user_id",
-                                    "age_group",
-                                    "due_date",
-                                    "gestational_period"
+                                    "age_group"
                                 ],
                                 "properties": {
                                     "user_id": {
@@ -998,14 +912,23 @@
                                         "description": "Expected delivery date",
                                         "type": "string",
                                         "format": "date",
-                                        "example": "2024-12-31"
+                                        "example": "2024-12-31",
+                                        "nullable": true
+                                    },
+                                    "first_day_circle": {
+                                        "description": "First day of last menstrual period",
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "2024-03-01",
+                                        "nullable": true
                                     },
                                     "gestational_period": {
                                         "description": "Current pregnancy week (1-42 weeks)",
                                         "type": "integer",
                                         "maximum": 42,
                                         "minimum": 1,
-                                        "example": 28
+                                        "example": 28,
+                                        "nullable": true
                                     },
                                     "baby_gender": {
                                         "description": "Known or expected gender of the baby",
@@ -1294,6 +1217,12 @@
                                         "format": "date-time",
                                         "example": "2024-03-21 14:30:00"
                                     },
+                                    "question": {
+                                        "description": "Optional question or note for the reminder",
+                                        "type": "string",
+                                        "example": "What should I ask my doctor?",
+                                        "nullable": true
+                                    },
                                     "dose_unit": {
                                         "type": "string",
                                         "enum": [
@@ -1464,6 +1393,72 @@
                                 }
                             }
                         }
+                    }
+                }
+            }
+        },
+        "/reminders/{id}/status": {
+            "patch": {
+                "tags": [
+                    "Reminders"
+                ],
+                "summary": "Update a reminder's status",
+                "description": "Updates the completion status of a reminder",
+                "operationId": "updateReminderStatus",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID of the reminder to update",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "status"
+                                ],
+                                "properties": {
+                                    "status": {
+                                        "description": "New status value (false=pending, true=completed)",
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Status updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Reminder status updated successfully"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Reminder"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Reminder not found"
                     }
                 }
             }
@@ -1681,6 +1676,11 @@
                         "type": "string",
                         "format": "date-time",
                         "example": "2024-03-21T12:00:00Z"
+                    },
+                    "status": {
+                        "description": "Reminder completion status (false=pending, true=completed)",
+                        "type": "boolean",
+                        "example": false
                     }
                 },
                 "type": "object"

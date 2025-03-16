@@ -48,13 +48,21 @@ class ReminderController extends Controller
      */
     public function index($user_id)
     {
-        $reminders = Reminder::where('user_id', $user_id)->get();
+        $reminders = Reminder::where('user_id', $user_id)
+            ->orderBy('reminder_time', 'asc')
+            ->get();
 
         if ($reminders->isEmpty()) {
             return response()->json(['message' => 'No reminders found'], 404);
         }
 
-        return response()->json(['data' => $reminders]);
+        return response()->json([
+            'data' => $reminders->map(function ($reminder) {
+                return array_merge($reminder->toArray(), [
+                    'status' => (bool) $reminder->status
+                ]);
+            })
+        ]);
     }
 
     /**
@@ -83,6 +91,13 @@ class ReminderController extends Controller
      *                 type="string",
      *                 format="date-time",
      *                 example="2024-03-21 14:30:00"
+     *             ),
+     *             @OA\Property(
+     *                 property="question",
+     *                 type="string",
+     *                 example="What should I ask my doctor?",
+     *                 nullable=true,
+     *                 description="Optional question or note for the reminder"
      *             ),
      *             @OA\Property(
      *                 property="dose_unit",
@@ -123,7 +138,8 @@ class ReminderController extends Controller
             'appointment' => 'required_if:type,doctor\'s appointment|string|nullable',
             'reminder_time' => 'required|date',
             'dose_unit' => 'required_if:type,medicine|in:tablets,drops,capsule|nullable',
-            'medicine_details' => 'required_if:type,medicine|array|nullable'
+            'medicine_details' => 'required_if:type,medicine|array|nullable',
+            'question' => 'nullable|string|max:1000'
         ]);
 
         if ($validator->fails()) {
@@ -135,6 +151,7 @@ class ReminderController extends Controller
 
         // Clean up data based on type
         $data = $validator->validated();
+        $data['status'] = true; // Set default status to pending
         
         // Fix: Use exact string comparison for type
         if ($data['type'] === "doctor's appointment") {
@@ -315,5 +332,82 @@ class ReminderController extends Controller
         $reminder->delete();
 
         return response()->json(['message' => 'Reminder deleted successfully']);
+    }
+
+    /**
+     * Update reminder status
+     * 
+     * @OA\Patch(
+     *     path="/reminders/{id}/status",
+     *     operationId="updateReminderStatus",
+     *     tags={"Reminders"},
+     *     summary="Update a reminder's status",
+     *     description="Updates the completion status of a reminder",
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="ID of the reminder to update",
+     *         @OA\Schema(type="integer", format="int64")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"status"},
+     *             @OA\Property(
+     *                 property="status",
+     *                 type="boolean",
+     *                 example=true,
+     *                 description="New status value (false=pending, true=completed)"
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Status updated successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(
+     *                 property="message",
+     *                 type="string",
+     *                 example="Reminder status updated successfully"
+     *             ),
+     *             @OA\Property(
+     *                 property="data",
+     *                 ref="#/components/schemas/Reminder"
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Reminder not found"
+     *     )
+     * )
+     */
+    public function updateStatus(Request $request, $id)
+    {
+        $reminder = Reminder::find($id);
+
+        if (!$reminder) {
+            return response()->json(['message' => 'Reminder not found'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'status' => 'required|boolean'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'The given data was invalid',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $reminder->status = $request->status;
+        $reminder->save();
+
+        return response()->json([
+            'message' => 'Reminder status updated successfully',
+            'data' => $reminder
+        ]);
     }
 } 

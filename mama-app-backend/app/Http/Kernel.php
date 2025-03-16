@@ -68,5 +68,6 @@ class Kernel extends HttpKernel
     protected $routeMiddleware = [
         // ... other middleware
         'auth.jwt' => \Tymon\JWTAuth\Http\Middleware\Authenticate::class,
+        'check.remember_token' => \App\Http\Middleware\CheckRememberToken::class,
     ];
 }

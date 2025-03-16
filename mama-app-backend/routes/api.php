@@ -19,14 +19,20 @@ use App\Http\Controllers\MamaTipController;
 |
 */
 
-// Auth routes
-Route::group(['middleware' => ['api']], function () {
+// Auth routes that require JWT
+Route::group([
+    'middleware' => 'api',
+    'prefix' => 'auth'
+], function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/refresh', [AuthController::class, 'refresh']);
     Route::get('/user-profile', [AuthController::class, 'userProfile']);
 });
+
+// Logout route with remember_token check
+Route::post('/auth/logout/{user_id}', [AuthController::class, 'logout'])
+    ->middleware('check.remember_token');
 
 // Mama Data route - no middleware
 Route::post('/mama-data', [MamaDataController::class, 'store']);
@@ -41,6 +47,7 @@ Route::get('/reminders/{user_id}', [ReminderController::class, 'index']);
 Route::post('/reminders', [ReminderController::class, 'store']);
 Route::put('/reminders/{id}', [ReminderController::class, 'update']);
 Route::delete('/reminders/{id}', [ReminderController::class, 'destroy']);
+Route::patch('/reminders/{id}/status', [ReminderController::class, 'updateStatus']);
 
 // User update route - no authentication
 Route::put('/users/{user_id}', [AuthController::class, 'updateUser']);
@@ -52,3 +59,4 @@ Route::get('/users/{user_id}/image', [AuthController::class, 'getUserImage']);
 // Mama Tips routes - no authentication
 Route::get('/mama-tips', [MamaTipController::class, 'index']);
 Route::get('/mama-tips/{id}', [MamaTipController::class, 'show']);
+

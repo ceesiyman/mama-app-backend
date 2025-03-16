@@ -17,7 +17,7 @@ class AuthController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['login', 'register', 'updateUser', 'updateUserImage', 'getUserImage']]);
+        $this->middleware('auth:api', ['except' => ['login', 'register', 'logout', 'updateUser', 'updateUserImage', 'getUserImage']]);
     }
 
     /**
@@ -201,12 +201,18 @@ class AuthController extends Controller
 
     /**
      * @OA\Post(
-     *     path="/auth/logout",
+     *     path="/auth/logout/{user_id}",
      *     summary="Logout a user",
-     *     description="Invalidates the current user's token",
+     *     description="Logs out user by clearing their remember_token",
      *     operationId="logout",
      *     tags={"Authentication"},
-     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="user_id",
+     *         in="path",
+     *         required=true,
+     *         description="ID of the user to logout",
+     *         @OA\Schema(type="integer", format="int64")
+     *     ),
      *     @OA\Response(
      *         response=200,
      *         description="Successfully logged out",
@@ -215,23 +221,26 @@ class AuthController extends Controller
      *         )
      *     ),
      *     @OA\Response(
-     *         response=401,
-     *         description="Unauthenticated",
+     *         response=404,
+     *         description="User not found",
      *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="Unauthenticated")
+     *             @OA\Property(property="message", type="string", example="User not found")
      *         )
      *     )
      * )
      */
-    public function logout()
+    public function logout($user_id)
     {
-        $user = auth()->user();
-        if ($user) {
-            $user->remember_token = null;
-            $user->save();
-        }
+        $user = User::find($user_id);
         
-        auth()->logout();
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
+        // Clear the remember token
+        $user->remember_token = null;
+        $user->save();
+        
         return response()->json(['message' => 'Successfully logged out']);
     }
 
@@ -325,96 +334,102 @@ class AuthController extends Controller
     /**
      * @OA\Put(
      *     path="/users/{user_id}",
-     *     summary="Update user details",
-     *     description="Updates user information like username, email, phone number, or password",
+     *     summary="Update user profile",
+     *     description="Updates a user's profile information. Only provided fields will be updated.",
      *     operationId="updateUser",
      *     tags={"Users"},
      *     @OA\Parameter(
      *         name="user_id",
      *         in="path",
      *         required=true,
-     *         description="ID of the user to update",
      *         @OA\Schema(type="integer", format="int64")
      *     ),
      *     @OA\RequestBody(
-     *         required=true,
      *         @OA\JsonContent(
-     *             @OA\Property(property="username", type="string", example="newusername"),
-     *             @OA\Property(property="email", type="string", format="email", example="newemail@example.com"),
-     *             @OA\Property(property="phone_number", type="string", example="1234567890"),
-     *             @OA\Property(property="password", type="string", format="password", example="newpassword123")
+     *             @OA\Property(property="username", type="string"),
+     *             @OA\Property(property="email", type="string", format="email"),
+     *             @OA\Property(property="phone_number", type="string"),
+     *             @OA\Property(property="password", type="string", format="password"),
+     *             @OA\Property(property="password_confirmation", type="string", format="password")
      *         )
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="User details updated successfully",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="status", type="string", example="success"),
-     *             @OA\Property(property="message", type="string", example="User details updated successfully"),
-     *             @OA\Property(
-     *                 property="data",
-     *                 type="object",
-     *                 ref="#/components/schemas/User"
-     *             )
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=400,
-     *         description="Validation error",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="status", type="string", example="error"),
-     *             @OA\Property(property="message", type="string", example="Validation error"),
-     *             @OA\Property(
-     *                 property="errors",
-     *                 type="object",
-     *                 @OA\Property(property="username", type="array", @OA\Items(type="string")),
-     *                 @OA\Property(property="email", type="array", @OA\Items(type="string")),
-     *                 @OA\Property(property="phone_number", type="array", @OA\Items(type="string")),
-     *                 @OA\Property(property="password", type="array", @OA\Items(type="string"))
-     *             )
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=404,
-     *         description="User not found",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="status", type="string", example="error"),
-     *             @OA\Property(property="message", type="string", example="User not found")
-     *         )
+     *         description="User updated successfully"
      *     )
      * )
      */
     public function updateUser(Request $request, $user_id)
     {
-        $validator = Validator::make($request->all(), [
-            'username' => 'sometimes|string|between:2,100|unique:users,username,' . $user_id,
-            'email' => 'sometimes|string|email|max:100|unique:users,email,' . $user_id,
-            'phone_number' => 'sometimes|string|max:15',
-            'password' => 'sometimes|string|min:6',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Validation error',
-                'errors' => $validator->errors()
-            ], 400);
+        $user = User::find($user_id);
+        
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
         }
 
-        $updatedUser = User::updateUserDetails($user_id, $request->all());
+        // Only validate fields that are actually provided
+        $rules = [];
+        $inputData = array_filter($request->all(), function ($value) {
+            return $value !== null && $value !== '';
+        });
 
-        if (!$updatedUser) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'User not found'
-            ], 404);
+        if (isset($inputData['username'])) {
+            $rules['username'] = 'string|between:3,100|unique:users,username,'.$user->id;
         }
+        
+        if (isset($inputData['email'])) {
+            $rules['email'] = 'string|email|max:100|unique:users,email,'.$user->id;
+        }
+        
+        if (isset($inputData['phone_number'])) {
+            $rules['phone_number'] = 'string|unique:users,phone_number,'.$user->id;
+        }
+
+        if (!empty($rules)) {
+            $validator = Validator::make($inputData, $rules);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => 'The given data was invalid.',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+        }
+
+        // Validate password separately if provided
+        if ($request->filled('password')) {
+            $passwordValidator = Validator::make($request->all(), [
+                'password' => 'required|string|confirmed|min:6'
+            ]);
+
+            if ($passwordValidator->fails()) {
+                return response()->json([
+                    'message' => 'The given data was invalid.',
+                    'errors' => $passwordValidator->errors()
+                ], 422);
+            }
+        }
+
+        // Only update fields that were provided with non-empty values
+        foreach ($inputData as $field => $value) {
+            if ($field === 'password') {
+                $user->password = bcrypt($value);
+            } elseif (in_array($field, ['username', 'email', 'phone_number'])) {
+                $user->$field = $value;
+            }
+        }
+
+        $user->save();
 
         return response()->json([
-            'status' => 'success',
-            'message' => 'User details updated successfully',
-            'data' => $updatedUser
-        ], 200);
+            'message' => 'User updated successfully',
+            'data' => [
+                'id' => $user->id,
+                'username' => $user->username,
+                'email' => $user->email,
+                'phone_number' => $user->phone_number
+            ]
+        ]);
     }
 
     /**

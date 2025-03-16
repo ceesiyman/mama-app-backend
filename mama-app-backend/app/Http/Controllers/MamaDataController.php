@@ -39,7 +39,7 @@ class MamaDataController extends Controller
      *         required=true,
      *         description="Mama's pregnancy information",
      *         @OA\JsonContent(
-     *             required={"user_id", "age_group","due_date","gestational_period"},
+     *             required={"user_id", "age_group"},
      *             @OA\Property(
      *                 property="user_id",
      *                 type="integer",
@@ -63,12 +63,22 @@ class MamaDataController extends Controller
      *                 property="due_date",
      *                 type="string",
      *                 format="date",
+     *                 nullable=true,
      *                 example="2024-12-31",
      *                 description="Expected delivery date"
      *             ),
      *             @OA\Property(
+     *                 property="first_day_circle",
+     *                 type="string",
+     *                 format="date",
+     *                 nullable=true,
+     *                 example="2024-03-01",
+     *                 description="First day of last menstrual period"
+     *             ),
+     *             @OA\Property(
      *                 property="gestational_period",
      *                 type="integer",
+     *                 nullable=true,
      *                 minimum=1,
      *                 maximum=42,
      *                 example=28,
@@ -109,8 +119,9 @@ class MamaDataController extends Controller
                 'user_id' => 'required|integer|exists:users,id',
                 'first_child' => 'boolean',
                 'age_group' => 'required|string|in:18-24 years old,25-34 years old,35-44 years old,44 years old or above',
-                'due_date' => 'required|date|after:today',
-                'gestational_period' => 'required|integer|between:1,42',
+                'due_date' => 'nullable|date|after:today',
+                'first_day_circle' => 'nullable|date|before:today',
+                'gestational_period' => 'nullable|integer|between:1,42',
                 'baby_gender' => 'string|in:boy,girl,i don\'t know yet'
             ]);
 
