@@ -21,6 +21,8 @@ class MamaTip extends Model
 {
     use HasFactory;
 
+    protected $table = 'mama_tips';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -41,4 +43,10 @@ class MamaTip extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime'
     ];
+
+    // Add relationship to TipsCategory
+    public function categories()
+    {
+        return $this->hasMany(TipsCategory::class, 'tip_id');
+    }
 } 

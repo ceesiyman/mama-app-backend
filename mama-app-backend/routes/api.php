@@ -37,6 +37,9 @@ Route::post('/auth/logout/{user_id}', [AuthController::class, 'logout'])
 // Mama Data route - no middleware
 Route::post('/mama-data', [MamaDataController::class, 'store']);
 
+// Mama Data routes
+Route::get('/mama-data/{user_id}', [MamaDataController::class, 'show']);
+
 // Journal routes - no authentication
 Route::post('/journals', [JournalController::class, 'store']);
 Route::get('/journals/{user_id}', [JournalController::class, 'index']);

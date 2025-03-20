@@ -12,7 +12,7 @@ class MamaTipController extends Controller
      * @OA\Get(
      *     path="/mama-tips",
      *     summary="Get all mama tips",
-     *     description="Returns list of all mama tips",
+     *     description="Returns list of all mama tips with their categories",
      *     operationId="getMamaTips",
      *     tags={"Mama Tips"},
      *     @OA\Response(
@@ -24,7 +24,22 @@ class MamaTipController extends Controller
      *             @OA\Property(
      *                 property="data",
      *                 type="array",
-     *                 @OA\Items(ref="#/components/schemas/MamaTip")
+     *                 @OA\Items(
+     *                     @OA\Property(property="id", type="integer"),
+     *                     @OA\Property(property="name", type="string"),
+     *                     @OA\Property(property="tip_content", type="string"),
+     *                     @OA\Property(property="image", type="string"),
+     *                     @OA\Property(
+     *                         property="categories",
+     *                         type="array",
+     *                         @OA\Items(
+     *                             @OA\Property(property="id", type="integer"),
+     *                             @OA\Property(property="name", type="string"),
+     *                             @OA\Property(property="contents", type="string"),
+     *                             @OA\Property(property="image", type="string")
+     *                         )
+     *                     )
+     *                 )
      *             )
      *         )
      *     )
@@ -32,7 +47,7 @@ class MamaTipController extends Controller
      */
     public function index()
     {
-        $tips = MamaTip::all();
+        $tips = MamaTip::with('categories')->get();
         return response()->json([
             'status' => 'success',
             'data' => $tips
@@ -107,7 +122,7 @@ class MamaTipController extends Controller
      * @OA\Get(
      *     path="/mama-tips/{id}",
      *     summary="Get mama tip by ID",
-     *     description="Returns a single mama tip",
+     *     description="Returns a single mama tip with its categories",
      *     operationId="getMamaTipById",
      *     tags={"Mama Tips"},
      *     @OA\Parameter(
@@ -126,23 +141,32 @@ class MamaTipController extends Controller
      *             @OA\Property(
      *                 property="data",
      *                 type="object",
-     *                 ref="#/components/schemas/MamaTip"
+     *                 @OA\Property(property="id", type="integer"),
+     *                 @OA\Property(property="name", type="string"),
+     *                 @OA\Property(property="tip_content", type="string"),
+     *                 @OA\Property(property="image", type="string"),
+     *                 @OA\Property(
+     *                     property="categories",
+     *                     type="array",
+     *                     @OA\Items(
+     *                         @OA\Property(property="id", type="integer"),
+     *                         @OA\Property(property="name", type="string"),
+     *                         @OA\Property(property="contents", type="string"),
+     *                         @OA\Property(property="image", type="string")
+     *                     )
+     *                 )
      *             )
      *         )
      *     ),
      *     @OA\Response(
      *         response=404,
-     *         description="Tip not found",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="status", type="string", example="error"),
-     *             @OA\Property(property="message", type="string", example="Tip not found")
-     *         )
+     *         description="Tip not found"
      *     )
      * )
      */
     public function show($id)
     {
-        $tip = MamaTip::find($id);
+        $tip = MamaTip::with('categories')->find($id);
         
         if (!$tip) {
             return response()->json([

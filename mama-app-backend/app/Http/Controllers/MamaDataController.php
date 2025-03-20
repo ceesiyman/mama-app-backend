@@ -144,4 +144,82 @@ class MamaDataController extends Controller
             return response()->json(['message' => 'An error occurred'], 500);
         }
     }
+
+    /**
+     * Get mama data by user ID
+     * 
+     * @OA\Get(
+     *     path="/mama-data/{user_id}",
+     *     operationId="getMamaData",
+     *     tags={"Mama Data"},
+     *     summary="Get mama's pregnancy data",
+     *     description="Retrieves the most recent pregnancy data for a specific user",
+     *     @OA\Parameter(
+     *         name="user_id",
+     *         in="path",
+     *         required=true,
+     *         description="ID of the user",
+     *         @OA\Schema(type="integer", format="int64")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successful operation",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="status",
+     *                 type="string",
+     *                 example="success"
+     *             ),
+     *             @OA\Property(
+     *                 property="data",
+     *                 type="object",
+     *                 ref="#/components/schemas/MamaData"
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Mama data not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(
+     *                 property="status",
+     *                 type="string",
+     *                 example="error"
+     *             ),
+     *             @OA\Property(
+     *                 property="message",
+     *                 type="string",
+     *                 example="Mama data not found"
+     *             )
+     *         )
+     *     )
+     * )
+     */
+    public function show($user_id)
+    {
+        try {
+            $mamaData = MamaData::where('user_id', $user_id)
+                               ->orderBy('created_at', 'desc')
+                               ->first();
+            
+            if (!$mamaData) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Mama data not found'
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $mamaData
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'An error occurred while retrieving mama data'
+            ], 500);
+        }
+    }
 }
