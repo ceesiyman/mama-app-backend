@@ -7,6 +7,7 @@ use App\Http\Controllers\MamaDataController;
 use App\Http\Controllers\JournalController;
 use App\Http\Controllers\ReminderController;
 use App\Http\Controllers\MamaTipController;
+use App\Http\Controllers\AiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,6 +30,10 @@ Route::group([
     Route::post('/refresh', [AuthController::class, 'refresh']);
     Route::get('/user-profile', [AuthController::class, 'userProfile']);
 });
+
+// Password reset via OTP (public)
+Route::post('/auth/request-password-reset', [AuthController::class, 'requestPasswordReset']);
+Route::post('/auth/verify-otp-reset', [AuthController::class, 'verifyOtpReset']);
 
 // Logout route with remember_token check
 Route::post('/auth/logout/{user_id}', [AuthController::class, 'logout'])
@@ -63,3 +68,5 @@ Route::get('/users/{user_id}/image', [AuthController::class, 'getUserImage']);
 Route::get('/mama-tips', [MamaTipController::class, 'index']);
 Route::get('/mama-tips/{id}', [MamaTipController::class, 'show']);
 
+
+Route::post('/api/ai-request', [AiController::class, 'processRequest']);
