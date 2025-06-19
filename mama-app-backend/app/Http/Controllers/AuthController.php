@@ -17,7 +17,7 @@ class AuthController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['login', 'register', 'logout', 'updateUser', 'updateUserImage', 'getUserImage']]);
+        $this->middleware('auth:api', ['except' => ['login', 'register', 'logout', 'updateUser', 'updateUserImage', 'getUserImage', 'requestPasswordReset', 'verifyOtpReset']]);
     }
 
     /**
@@ -592,6 +592,138 @@ class AuthController extends Controller
                 'image_path' => $user->image
             ]
         ], 200);
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/auth/request-password-reset",
+     *     summary="Request password reset via OTP",
+     *     description="Sends an OTP to the user's email for password reset.",
+     *     operationId="requestPasswordReset",
+     *     tags={"Authentication"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"email"},
+     *             @OA\Property(property="email", type="string", format="email", example="john@example.com")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="OTP sent successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="OTP sent to your email.")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="User not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="User not found.")
+     *         )
+     *     )
+     * )
+     */
+    public function requestPasswordReset(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        $user = \App\Models\User::where('email', $request->email)->first();
+        if (!$user) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
+        // Generate OTP
+        $otp = rand(100000, 999999);
+        $expiresAt = now()->addMinutes(10);
+
+        // Store OTP
+        \App\Models\Otp::updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'otp' => $otp,
+                'expires_at' => $expiresAt,
+            ]
+        );
+
+        // Send OTP email
+        \Mail::to($user->email)->send(new \App\Mail\OtpMail($otp, $user));
+
+        return response()->json(['message' => 'OTP sent to your email.']);
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/auth/verify-otp-reset",
+     *     summary="Verify OTP and reset password",
+     *     description="Verifies the OTP and resets the user's password.",
+     *     operationId="verifyOtpReset",
+     *     tags={"Authentication"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"email","otp","password","password_confirmation"},
+     *             @OA\Property(property="email", type="string", format="email", example="john@example.com"),
+     *             @OA\Property(property="otp", type="string", example="123456"),
+     *             @OA\Property(property="password", type="string", format="password", example="newpassword123"),
+     *             @OA\Property(property="password_confirmation", type="string", format="password", example="newpassword123")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Password reset successful",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Password reset successful.")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Invalid OTP or expired",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Invalid or expired OTP.")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="User not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="User not found.")
+     *         )
+     *     )
+     * )
+     */
+    public function verifyOtpReset(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'otp' => 'required|string',
+            'password' => 'required|string|confirmed|min:6',
+        ]);
+
+        $user = \App\Models\User::where('email', $request->email)->first();
+        if (!$user) {
+            return response()->json(['message' => 'User not found.'], 404);
+        }
+
+        $otpRecord = \App\Models\Otp::where('user_id', $user->id)
+            ->where('otp', $request->otp)
+            ->where('expires_at', '>', now())
+            ->first();
+
+        if (!$otpRecord) {
+            return response()->json(['message' => 'Invalid or expired OTP.'], 400);
+        }
+
+        // Reset password
+        $user->password = $request->password;
+        $user->save();
+
+        // Delete OTP after successful verification
+        $otpRecord->delete();
+
+        return response()->json(['message' => 'Password reset successful.']);
     }
 
 } 
